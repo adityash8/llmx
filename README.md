@@ -4,6 +4,8 @@
 
 LLMX generates, validates, and maintains production-ready llms.txt files so large language models can reliably discover your site's canonical content.
 
+<!-- Build trigger: Latest fixes applied -->
+
 ## 🚀 Features
 
 - **Auto-Detect Sitemaps**: Automatically finds and parses your sitemap.xml, including nested sitemaps
