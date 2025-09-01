@@ -1,0 +1,55 @@
+{
+  "company": {
+    "name": "Your Company",
+    "tagline": "Your company tagline",
+    "website": "https://yourcompany.com",
+    "description": "Description of what your company does"
+  },
+  "sitemap": {
+    "autoDetect": true,
+    "urls": [],
+    "maxUrls": 500,
+    "cacheTimeout": 3600000
+  },
+  "rules": {
+    "presets": {
+      "blog": [
+        { "type": "include", "pattern": "/blog/", "description": "Include blog posts" },
+        { "type": "exclude", "pattern": "/blog/tag/", "description": "Exclude tag pages" }
+      ],
+      "docs": [
+        { "type": "include", "pattern": "/docs/", "description": "Include documentation" },
+        { "type": "exclude", "pattern": "/docs/search", "description": "Exclude search pages" }
+      ]
+    },
+    "custom": [
+      { "type": "include", "pattern": "/important-page", "description": "Always include this page" },
+      { "type": "exclude", "pattern": "/admin", "description": "Exclude admin pages" }
+    ]
+  },
+  "validation": {
+    "checkStatus": true,
+    "checkCanonical": true,
+    "checkRobots": true,
+    "checkFreshness": true,
+    "maxConcurrent": 10,
+    "timeout": 5000
+  },
+  "output": {
+    "includeRobotsSection": true,
+    "includeJsonSection": true,
+    "includeMetadata": true,
+    "format": "both"
+  },
+  "integrations": {
+    "github": {
+      "enabled": false,
+      "createPR": true,
+      "branchPrefix": "llmx-update"
+    },
+    "webhooks": {
+      "enabled": false,
+      "urls": []
+    }
+  }
+}
