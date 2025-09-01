@@ -4,13 +4,17 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+
 import { Search, Zap, CheckCircle, AlertTriangle } from 'lucide-react'
 
 export default function DemoPage() {
   const [domain, setDomain] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<{
+    sitemaps: string[];
+    urls: Array<{ loc: string }>;
+    analysis: { validUrls: number };
+  } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleTest = async () => {
@@ -34,7 +38,7 @@ export default function DemoPage() {
       } else {
         setError(data.error || 'Failed to process domain')
       }
-    } catch (error) {
+    } catch {
       setError('Network error occurred')
     } finally {
       setIsLoading(false)
@@ -132,7 +136,7 @@ export default function DemoPage() {
                   <div>
                     <h3 className="font-semibold mb-2">Sample URLs:</h3>
                     <div className="space-y-1 max-h-40 overflow-y-auto">
-                      {result.urls.slice(0, 10).map((url: any, index: number) => (
+                      {result.urls.slice(0, 10).map((url, index: number) => (
                         <div key={index} className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded">
                           {url.loc}
                         </div>

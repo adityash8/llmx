@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Search, Zap, Shield, CheckCircle, ArrowRight } from 'lucide-react'
+import { Search, Shield, CheckCircle, ArrowRight } from 'lucide-react'
 import Navigation from '@/components/navigation'
 
 export default function HomePage() {
@@ -34,9 +34,9 @@ export default function HomePage() {
           <h1 className="text-5xl font-bold text-gray-900 mb-6">
             Tell AI what to read
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Generate, validate, and maintain production-ready llms.txt files so large language models can reliably discover your site's canonical content.
-          </p>
+                      <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Generate, validate, and maintain production-ready llms.txt files so large language models can reliably discover your site&apos;s canonical content.
+            </p>
           
           {/* Domain Input Form */}
           <Card className="max-w-2xl mx-auto">
@@ -46,7 +46,7 @@ export default function HomePage() {
                 <span>Enter your domain</span>
               </CardTitle>
               <CardDescription>
-                We'll automatically detect your sitemap and generate a clean llms.txt
+                We&apos;ll automatically detect your sitemap and generate a clean llms.txt
               </CardDescription>
             </CardHeader>
             <CardContent>

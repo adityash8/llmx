@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLlmsTxt } from '@/lib/llms-txt'
 import { validateUrls } from '@/lib/validation'
-import { LlmsTxtRule } from '@/types'
+
 
 export async function POST(request: NextRequest) {
   try {

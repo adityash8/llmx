@@ -9,16 +9,14 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Search, 
-  Zap, 
   CheckCircle, 
   AlertTriangle, 
   Download, 
   GitBranch,
   Settings,
-  Eye,
   Copy
 } from 'lucide-react'
-import { detectSitemap, filterUrlsByRules } from '@/lib/sitemap'
+import { filterUrlsByRules } from '@/lib/sitemap'
 import { PRESET_RULES } from '@/lib/llms-txt'
 import { getScoreBadge } from '@/lib/validation'
 import { SitemapUrl, LlmsTxtRule, ValidationIssue } from '@/types'
@@ -45,7 +43,7 @@ export default function GeneratePage() {
     if (domain && currentStep === 1) {
       detectSitemapForDomain()
     }
-  }, [domain, currentStep])
+  }, [domain, currentStep, detectSitemapForDomain])
 
   // Step 2: Parse sitemap
   useEffect(() => {
@@ -60,7 +58,7 @@ export default function GeneratePage() {
     if (parsedUrls.length > 0 && currentStep === 3 && rules.length > 0) {
       applyRulesAndGenerate()
     }
-  }, [parsedUrls, rules, currentStep])
+  }, [parsedUrls, rules, currentStep, applyRulesAndGenerate])
 
   const detectSitemapForDomain = async () => {
     setIsLoading(true)
