@@ -124,8 +124,12 @@ export default function HomePage() {
             Join thousands of sites using LLMX to ensure LLMs discover their best content
           </p>
           <div className="flex justify-center space-x-4">
-            <Button size="lg">Start Free Trial</Button>
-            <Button variant="outline" size="lg">View Demo</Button>
+            <Button size="lg" onClick={() => window.location.href = '/generate'}>
+              Generate Free
+            </Button>
+            <Button variant="outline" size="lg" onClick={() => window.location.href = '/pricing'}>
+              View Pricing
+            </Button>
           </div>
         </div>
       </main>

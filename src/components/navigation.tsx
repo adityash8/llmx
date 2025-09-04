@@ -32,6 +32,11 @@ export default function Navigation() {
               Generate
             </Button>
           </Link>
+          <Link href="/pricing">
+            <Button variant={pathname === '/pricing' ? 'default' : 'ghost'}>
+              Pricing
+            </Button>
+          </Link>
         </nav>
       </div>
     </header>

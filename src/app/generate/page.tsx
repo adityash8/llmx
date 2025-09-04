@@ -19,8 +19,10 @@ import {
 import { filterUrlsByRules } from '@/lib/sitemap'
 import { PRESET_RULES } from '@/lib/llms-txt'
 import { getScoreBadge } from '@/lib/validation'
-import { SitemapUrl, LlmsTxtRule, ValidationIssue } from '@/types'
+import { SitemapUrl, LlmsTxtRule, ValidationIssue, User } from '@/types'
 import Navigation from '@/components/navigation'
+import UsageTracker from '@/components/usage-tracker'
+import { GitHubPRGate } from '@/components/premium-gate'
 
 export default function GeneratePage() {
   const searchParams = useSearchParams()
@@ -37,6 +39,8 @@ export default function GeneratePage() {
   const [validationScore, setValidationScore] = useState(0)
   const [llmsTxtContent, setLlmsTxtContent] = useState('')
   const [selectedPreset, setSelectedPreset] = useState('')
+  const [user, setUser] = useState<User | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // Step 1: Detect sitemap
   useEffect(() => {
@@ -91,6 +95,7 @@ export default function GeneratePage() {
 
   const applyRulesAndGenerate = async () => {
     setIsLoading(true)
+    setError(null)
     try {
       // Apply rules
       const filtered = filterUrlsByRules(parsedUrls, rules)
@@ -100,7 +105,11 @@ export default function GeneratePage() {
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls: filtered, rules })
+        body: JSON.stringify({ 
+          urls: filtered, 
+          rules,
+          userId: user?.id // Include user ID for usage tracking
+        })
       })
       
       const data = await response.json()
@@ -111,10 +120,16 @@ export default function GeneratePage() {
         setValidationScore(data.validation.score)
         setCurrentStep(4)
       } else {
-        console.error('Error:', data.error)
+        if (data.code === 'USAGE_LIMIT_EXCEEDED' || data.code === 'URL_LIMIT_EXCEEDED') {
+          setError(data.error)
+        } else {
+          console.error('Error:', data.error)
+          setError('Failed to generate llms.txt. Please try again.')
+        }
       }
     } catch (error) {
       console.error('Error generating llms.txt:', error)
+      setError('Failed to generate llms.txt. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -161,11 +176,41 @@ export default function GeneratePage() {
 
   const scoreBadge = getScoreBadge(validationScore)
 
+  const handleUpgrade = () => {
+    window.location.href = '/pricing'
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <Navigation />
 
       <main className="container mx-auto px-4 py-8">
+        {/* Usage Tracker */}
+        {user && (
+          <UsageTracker user={user} onUpgrade={handleUpgrade} />
+        )}
+
+        {/* Error Display */}
+        {error && (
+          <Card className="mb-6 border-red-200 bg-red-50">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2 text-red-800">
+                <AlertTriangle className="h-5 w-5" />
+                <span className="font-medium">Error</span>
+              </div>
+              <p className="text-red-700 mt-2">{error}</p>
+              {error.includes('limit') && (
+                <Button 
+                  size="sm" 
+                  className="mt-3"
+                  onClick={handleUpgrade}
+                >
+                  Upgrade Plan
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center space-x-4">
@@ -415,10 +460,19 @@ export default function GeneratePage() {
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
-                    <Button size="sm">
-                      <GitBranch className="h-4 w-4 mr-2" />
-                      Create PR
-                    </Button>
+                    {user ? (
+                      <GitHubPRGate user={user} onUpgrade={handleUpgrade}>
+                        <Button size="sm">
+                          <GitBranch className="h-4 w-4 mr-2" />
+                          Create PR
+                        </Button>
+                      </GitHubPRGate>
+                    ) : (
+                      <Button size="sm" disabled>
+                        <GitBranch className="h-4 w-4 mr-2" />
+                        Create PR
+                      </Button>
+                    )}
                   </div>
                 </CardTitle>
               </CardHeader>

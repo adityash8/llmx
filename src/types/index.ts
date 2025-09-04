@@ -77,4 +77,44 @@ export interface User {
   projects: Project[]
   githubToken?: string
   stripeCustomerId?: string
+  usage: UserUsage
+  subscription?: Subscription
+}
+
+export interface UserUsage {
+  id: string
+  userId: string
+  generationsThisMonth: number
+  lastGenerationDate: Date
+  totalGenerations: number
+  lastResetDate: Date
+}
+
+export interface Subscription {
+  id: string
+  userId: string
+  plan: 'pro' | 'agency'
+  status: 'active' | 'canceled' | 'past_due' | 'unpaid'
+  stripeSubscriptionId: string
+  currentPeriodStart: Date
+  currentPeriodEnd: Date
+  cancelAtPeriodEnd: boolean
+}
+
+export interface PlanLimits {
+  free: {
+    generationsPerMonth: number
+    maxUrlsPerGeneration: number
+    features: string[]
+  }
+  pro: {
+    generationsPerMonth: number
+    maxUrlsPerGeneration: number
+    features: string[]
+  }
+  agency: {
+    generationsPerMonth: number
+    maxUrlsPerGeneration: number
+    features: string[]
+  }
 }
