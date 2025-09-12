@@ -23,6 +23,7 @@ import { SitemapUrl, LlmsTxtRule, ValidationIssue, User } from '@/types'
 import Navigation from '@/components/navigation'
 import UsageTracker from '@/components/usage-tracker'
 import { GitHubPRGate } from '@/components/premium-gate'
+import { getCurrentUser, createProject } from '@/lib/supabase'
 
 export default function GeneratePage() {
   const searchParams = useSearchParams()
@@ -41,6 +42,20 @@ export default function GeneratePage() {
   const [selectedPreset, setSelectedPreset] = useState('')
   const [user, setUser] = useState<User | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [projectSaved, setProjectSaved] = useState(false)
+
+  // Load user on mount
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const currentUser = await getCurrentUser()
+        setUser(currentUser)
+      } catch (error) {
+        console.error('Error loading user:', error)
+      }
+    }
+    loadUser()
+  }, [])
 
   // Step 1: Detect sitemap
   useEffect(() => {
@@ -178,6 +193,31 @@ export default function GeneratePage() {
 
   const handleUpgrade = () => {
     window.location.href = '/pricing'
+  }
+
+  const saveProject = async () => {
+    if (!user || !llmsTxtContent || projectSaved) return
+
+    try {
+      const projectName = domain.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'My Project'
+      
+      await createProject({
+        userId: user.id,
+        name: projectName,
+        domain: domain,
+        sitemapUrl: selectedSitemap,
+        rules: rules,
+        urls: filteredUrls,
+        validationIssues: validationIssues,
+        llmsTxtContent: llmsTxtContent,
+        score: validationScore,
+        isPublic: false
+      })
+      
+      setProjectSaved(true)
+    } catch (error) {
+      console.error('Error saving project:', error)
+    }
   }
 
   return (
@@ -423,7 +463,7 @@ export default function GeneratePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="grid grid-cols-3 gap-4 mb-6">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
                       {validationIssues.filter(i => i.severity === 'error').length}
@@ -443,6 +483,50 @@ export default function GeneratePage() {
                     <div className="text-sm text-gray-600">Valid URLs</div>
                   </div>
                 </div>
+
+                {/* Issues List */}
+                {validationIssues.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Issues Found</h4>
+                    {validationIssues.map((issue, index) => (
+                      <div key={index} className={`p-3 rounded-lg border ${
+                        issue.severity === 'error' ? 'border-red-200 bg-red-50' :
+                        issue.severity === 'warning' ? 'border-yellow-200 bg-yellow-50' :
+                        'border-blue-200 bg-blue-50'
+                      }`}>
+                        <div className="flex items-start space-x-3">
+                          {issue.severity === 'error' ? (
+                            <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                          ) : issue.severity === 'warning' ? (
+                            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          ) : (
+                            <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                          )}
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900">
+                              {issue.message}
+                            </div>
+                            {issue.url && (
+                              <div className="text-sm text-gray-600 mt-1">
+                                URL: {issue.url}
+                              </div>
+                            )}
+                            {issue.suggestion && (
+                              <div className="text-sm text-gray-700 mt-2 p-2 bg-white rounded border">
+                                💡 {issue.suggestion}
+                              </div>
+                            )}
+                          </div>
+                          {issue.suggestion && (
+                            <Button size="sm" variant="outline">
+                              Fix
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -460,6 +544,16 @@ export default function GeneratePage() {
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
+                    {user && !projectSaved && (
+                      <Button size="sm" variant="outline" onClick={saveProject}>
+                        Save Project
+                      </Button>
+                    )}
+                    {user && projectSaved && (
+                      <Button size="sm" variant="outline" disabled>
+                        ✓ Saved
+                      </Button>
+                    )}
                     {user ? (
                       <GitHubPRGate user={user} onUpgrade={handleUpgrade}>
                         <Button size="sm">

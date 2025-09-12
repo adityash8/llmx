@@ -203,3 +203,98 @@ export function getScoreBadge(score: number): { label: string; variant: 'success
     return { label: 'D', variant: 'error' }
   }
 }
+
+// LLM Simulation for validation
+export async function simulateLLMParsing(urls: SitemapUrl[]): Promise<ValidationIssue[]> {
+  const issues: ValidationIssue[] = []
+  
+  // Simulate common LLM parsing issues
+  for (const url of urls.slice(0, 10)) { // Limit to first 10 for performance
+    try {
+      // Check for potential parsing ambiguities
+      const urlPath = new URL(url.loc).pathname
+      
+      // Check for very long URLs that might confuse LLMs
+      if (url.loc.length > 200) {
+        issues.push({
+          type: 'status',
+          severity: 'warning',
+          message: 'URL is very long and may confuse LLM parsing',
+          url: url.loc,
+          suggestion: 'Consider shortening the URL or using a more descriptive path',
+        })
+      }
+      
+      // Check for URLs with many parameters
+      const paramCount = (url.loc.match(/[?&]/g) || []).length
+      if (paramCount > 5) {
+        issues.push({
+          type: 'status',
+          severity: 'warning',
+          message: 'URL has many parameters that may confuse LLM parsing',
+          url: url.loc,
+          suggestion: 'Consider using cleaner URLs or canonical versions',
+        })
+      }
+      
+      // Check for non-ASCII characters
+      if (!/^[\x00-\x7F]*$/.test(url.loc)) {
+        issues.push({
+          type: 'status',
+          severity: 'info',
+          message: 'URL contains non-ASCII characters',
+          url: url.loc,
+          suggestion: 'Consider URL encoding or using ASCII-friendly alternatives',
+        })
+      }
+      
+      // Check for dynamic content indicators
+      const dynamicPatterns = ['/search?', '/filter?', '/sort?', '/page=', '/id=', '/uuid=']
+      if (dynamicPatterns.some(pattern => url.loc.includes(pattern))) {
+        issues.push({
+          type: 'status',
+          severity: 'warning',
+          message: 'URL appears to be dynamically generated',
+          url: url.loc,
+          suggestion: 'Consider if this URL should be included in llms.txt or if a canonical version exists',
+        })
+      }
+      
+    } catch (error) {
+      issues.push({
+        type: 'status',
+        severity: 'error',
+        message: 'Invalid URL format detected',
+        url: url.loc,
+        suggestion: 'Fix URL format to ensure proper LLM parsing',
+      })
+    }
+  }
+  
+  return issues
+}
+
+// Enhanced validation that includes LLM simulation
+export async function validateUrlsWithLLMSimulation(urls: SitemapUrl[]): Promise<ValidationResult> {
+  // Run standard validation
+  const standardValidation = await validateUrls(urls)
+  
+  // Run LLM simulation
+  const llmIssues = await simulateLLMParsing(urls)
+  
+  // Combine issues
+  const allIssues = [...standardValidation.issues, ...llmIssues]
+  
+  // Recalculate score
+  const score = calculateScore(allIssues)
+  
+  return {
+    issues: allIssues,
+    score,
+    summary: {
+      errors: allIssues.filter(issue => issue.severity === 'error').length,
+      warnings: allIssues.filter(issue => issue.severity === 'warning').length,
+      info: allIssues.filter(issue => issue.severity === 'info').length,
+    }
+  }
+}

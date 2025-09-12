@@ -127,6 +127,9 @@ export default function HomePage() {
             <Button size="lg" onClick={() => window.location.href = '/generate'}>
               Generate Free
             </Button>
+            <Button variant="outline" size="lg" onClick={() => window.location.href = '/validator'}>
+              Try Validator
+            </Button>
             <Button variant="outline" size="lg" onClick={() => window.location.href = '/pricing'}>
               View Pricing
             </Button>

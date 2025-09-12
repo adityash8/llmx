@@ -45,81 +45,82 @@ export async function parseSitemap(sitemapUrl: string, maxUrls: number = 500): P
     }
 
     const xmlText = await response.text()
-    const parser = new DOMParser()
-    const xmlDoc = parser.parseFromString(xmlText, 'text/xml')
+    
+    // Use regex-based parsing instead of DOMParser for server-side compatibility
+    return parseSitemapXml(xmlText, maxUrls, sitemapUrl)
+  } catch (error) {
+    console.error('Error parsing sitemap:', error)
+    throw error
+  }
+}
 
-    // Check if this is a sitemap index
-    const sitemapElements = xmlDoc.querySelectorAll('sitemap')
-    if (sitemapElements.length > 0) {
-      const nestedSitemaps: string[] = []
-      const nestedUrls: SitemapUrl[] = []
-
-      for (const sitemapElement of sitemapElements) {
-        const locElement = sitemapElement.querySelector('loc')
-        if (locElement?.textContent) {
-          nestedSitemaps.push(locElement.textContent)
-          
-          // Parse nested sitemap if we haven't reached the limit
-          if (nestedUrls.length < maxUrls) {
-            try {
-              const nestedResult = await parseSitemap(locElement.textContent, maxUrls - nestedUrls.length)
-              nestedUrls.push(...nestedResult.urls)
-            } catch (error) {
-              console.warn(`Failed to parse nested sitemap ${locElement.textContent}:`, error)
-            }
-          }
+function parseSitemapXml(xmlText: string, maxUrls: number, baseUrl: string): {
+  urls: SitemapUrl[]
+  analysis: SitemapAnalysis
+} {
+  const urls: SitemapUrl[] = []
+  const nestedSitemaps: string[] = []
+  
+  // Check if this is a sitemap index
+  const sitemapIndexMatch = xmlText.match(/<sitemapindex[^>]*>([\s\S]*?)<\/sitemapindex>/i)
+  if (sitemapIndexMatch) {
+    const sitemapMatches = sitemapIndexMatch[1].match(/<sitemap>([\s\S]*?)<\/sitemap>/gi)
+    
+    if (sitemapMatches) {
+      for (const sitemapMatch of sitemapMatches) {
+        const locMatch = sitemapMatch.match(/<loc>([^<]+)<\/loc>/i)
+        if (locMatch && nestedSitemaps.length < 10) { // Limit nested sitemaps
+          nestedSitemaps.push(locMatch[1])
         }
-      }
-
-      return {
-        urls: nestedUrls.slice(0, maxUrls),
-        analysis: {
-          totalUrls: nestedUrls.length,
-          validUrls: nestedUrls.length,
-          invalidUrls: 0,
-          lastModified: null,
-          hasNestedSitemaps: true,
-          nestedSitemaps,
-        },
-      }
-    }
-
-    // Parse regular sitemap
-    const urlElements = xmlDoc.querySelectorAll('url')
-    const urls: SitemapUrl[] = []
-
-    for (const urlElement of urlElements) {
-      if (urls.length >= maxUrls) break
-
-      const locElement = urlElement.querySelector('loc')
-      const lastmodElement = urlElement.querySelector('lastmod')
-      const changefreqElement = urlElement.querySelector('changefreq')
-      const priorityElement = urlElement.querySelector('priority')
-
-      if (locElement?.textContent) {
-        urls.push({
-          loc: locElement.textContent,
-          lastmod: lastmodElement?.textContent,
-          changefreq: changefreqElement?.textContent,
-          priority: priorityElement?.textContent ? parseFloat(priorityElement.textContent) : undefined,
-        })
       }
     }
 
     return {
-      urls,
+      urls: [], // We'll parse nested sitemaps separately
       analysis: {
-        totalUrls: urls.length,
-        validUrls: urls.length,
+        totalUrls: 0,
+        validUrls: 0,
         invalidUrls: 0,
         lastModified: null,
-        hasNestedSitemaps: false,
-        nestedSitemaps: [],
+        hasNestedSitemaps: true,
+        nestedSitemaps,
       },
     }
-  } catch (error) {
-    console.error('Error parsing sitemap:', error)
-    throw error
+  }
+
+  // Parse regular sitemap
+  const urlMatches = xmlText.match(/<url>([\s\S]*?)<\/url>/gi)
+  
+  if (urlMatches) {
+    for (const urlMatch of urlMatches) {
+      if (urls.length >= maxUrls) break
+
+      const locMatch = urlMatch.match(/<loc>([^<]+)<\/loc>/i)
+      const lastmodMatch = urlMatch.match(/<lastmod>([^<]+)<\/lastmod>/i)
+      const changefreqMatch = urlMatch.match(/<changefreq>([^<]+)<\/changefreq>/i)
+      const priorityMatch = urlMatch.match(/<priority>([^<]+)<\/priority>/i)
+
+      if (locMatch) {
+        urls.push({
+          loc: locMatch[1],
+          lastmod: lastmodMatch?.[1],
+          changefreq: changefreqMatch?.[1],
+          priority: priorityMatch?.[1] ? parseFloat(priorityMatch[1]) : undefined,
+        })
+      }
+    }
+  }
+
+  return {
+    urls,
+    analysis: {
+      totalUrls: urls.length,
+      validUrls: urls.length,
+      invalidUrls: 0,
+      lastModified: null,
+      hasNestedSitemaps: false,
+      nestedSitemaps: [],
+    },
   }
 }
 

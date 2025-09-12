@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateLlmsTxt } from '@/lib/llms-txt'
-import { validateUrls } from '@/lib/validation'
+import { validateUrlsWithLLMSimulation } from '@/lib/validation'
 import { getUser, updateUserUsage } from '@/lib/supabase'
 import { canGenerate, getPlanLimits } from '@/lib/plans'
 
@@ -44,9 +44,9 @@ export async function POST(request: NextRequest) {
     // Generate llms.txt
     const llmsTxtContent = generateLlmsTxt(urls, rules || [])
 
-    // Validate URLs (limit to first 50 for performance)
+    // Validate URLs with LLM simulation (limit to first 50 for performance)
     const urlsToValidate = urls.slice(0, 50)
-    const validation = await validateUrls(urlsToValidate)
+    const validation = await validateUrlsWithLLMSimulation(urlsToValidate)
 
     return NextResponse.json({
       llmsTxt: llmsTxtContent,
