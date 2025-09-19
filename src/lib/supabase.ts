@@ -1,6 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { createClientComponentClient, createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { User, UserUsage, Subscription } from '@/types'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,9 +10,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Client-side client for components
 export const createClientSupabase = () => createClientComponentClient()
-
-// Server-side client with auth
-export const createServerSupabase = () => createServerComponentClient({ cookies })
 
 export async function getUser(userId: string): Promise<User | null> {
   try {
