@@ -52,7 +52,11 @@ export default function DashboardPage() {
   }, [router])
 
   const handleCreateProject = () => {
-    window.location.href = '/generate'
+    window.location.href = '/dashboard/webflow/sites'
+  }
+
+  const handleConnectWebflow = () => {
+    window.location.href = '/dashboard/webflow/sites'
   }
 
   const handleViewProject = (projectId: string) => {
@@ -121,6 +125,9 @@ export default function DashboardPage() {
             <Button variant="outline" onClick={() => window.location.href = '/validator'}>
               <ExternalLink className="h-4 w-4 mr-2" />
               Public Validator
+            </Button>
+            <Button variant="outline" onClick={handleConnectWebflow}>
+              Connect Webflow
             </Button>
             <Button onClick={handleCreateProject}>
               <Plus className="h-4 w-4 mr-2" />

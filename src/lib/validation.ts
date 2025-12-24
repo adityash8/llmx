@@ -96,21 +96,40 @@ async function validateSingleUrl(url: SitemapUrl): Promise<ValidationIssue[]> {
     }
     
     // Check freshness
-    const lastModified = response.headers.get('last-modified')
-    if (lastModified && url.lastmod) {
-      const lastModifiedDate = new Date(lastModified)
-      const sitemapDate = new Date(url.lastmod)
-      const daysDiff = Math.abs(lastModifiedDate.getTime() - sitemapDate.getTime()) / (1000 * 60 * 60 * 24)
-      
-      if (daysDiff > 30) {
+    if (url.lastmod) {
+      const lastModDate = new Date(url.lastmod)
+      const now = new Date()
+      const daysSinceUpdate = (now.getTime() - lastModDate.getTime()) / (1000 * 60 * 60 * 24)
+
+      if (daysSinceUpdate > 365) {
         issues.push({
           type: 'freshness',
           severity: 'warning',
-          message: `Sitemap lastmod differs from server by ${Math.round(daysDiff)} days`,
+          message: `Content hasn't been updated in over a year (${Math.round(daysSinceUpdate)} days)`,
           url: url.loc,
-          suggestion: 'Update sitemap with current last-modified date',
+          suggestion: 'Review if this content is still relevant or needs updating',
+        })
+      } else if (daysSinceUpdate > 90) {
+        issues.push({
+          type: 'freshness',
+          severity: 'info',
+          message: `Content hasn't been updated in ${Math.round(daysSinceUpdate)} days`,
+          url: url.loc,
+          suggestion: 'Consider reviewing and updating if content is outdated',
         })
       }
+    }
+
+    // Check for password protection (Webflow-specific)
+    const wwwAuthenticate = response.headers.get('www-authenticate')
+    if (wwwAuthenticate || response.status === 401) {
+      issues.push({
+        type: 'robots',
+        severity: 'error',
+        message: 'Page is password-protected',
+        url: url.loc,
+        suggestion: 'Remove password protection or exclude from llms.txt',
+      })
     }
     
   } catch (error) {

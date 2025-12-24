@@ -8,6 +8,7 @@ export interface SitemapUrl {
 export interface LlmsTxtRule {
   type: 'include' | 'exclude'
   pattern: string
+  priority?: number
   description?: string
 }
 
@@ -23,11 +24,14 @@ export interface Project {
   id: string
   name: string
   domain: string
+  webflowSiteId?: string
   sitemapUrl?: string
   rules: LlmsTxtRule[]
   urls: SitemapUrl[]
   validationIssues: ValidationIssue[]
   llmsTxtContent: string
+  lastPublishedAt?: Date
+  publishedFileUrl?: string
   createdAt: Date
   updatedAt: Date
   userId: string
@@ -60,12 +64,23 @@ export interface ValidationResult {
   }
 }
 
-export interface GitHubPR {
+export interface WebflowSite {
   id: string
-  url: string
-  title: string
-  branch: string
-  status: 'pending' | 'merged' | 'closed'
+  webflowSiteId: string
+  displayName: string
+  shortName: string
+  previewUrl?: string
+  userId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface WebflowToken {
+  id: string
+  userId: string
+  accessToken: string
+  refreshToken?: string
+  expiresAt?: Date
   createdAt: Date
 }
 
@@ -75,7 +90,7 @@ export interface User {
   name?: string
   plan: 'free' | 'pro' | 'agency'
   projects: Project[]
-  githubToken?: string
+  webflowSites?: WebflowSite[]
   stripeCustomerId?: string
   usage: UserUsage
   subscription?: Subscription
