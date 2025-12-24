@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { createServerSupabase } from '@/lib/supabase-server'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-08-27.basil',
 })
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session
         
         if (session.mode === 'subscription') {
-          const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+          const subscription: any = await stripe.subscriptions.retrieve(session.subscription as string)
           const userId = session.metadata?.userId
           const plan = session.metadata?.plan
 
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
                 plan: plan,
                 status: subscription.status,
                 stripe_subscription_id: subscription.id,
-                current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-                current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-                cancel_at_period_end: subscription.cancel_at_period_end
+                current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+                current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+                cancel_at_period_end: (subscription as any).cancel_at_period_end
               }, {
                 onConflict: 'user_id'
               })
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
             .from('subscriptions')
             .update({
               status: subscription.status,
-              current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-              current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+              current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+              current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
               cancel_at_period_end: subscription.cancel_at_period_end
             })
             .eq('stripe_subscription_id', subscription.id)
@@ -107,10 +107,10 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_succeeded': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as any
         
         if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+          const subscription: any = await stripe.subscriptions.retrieve(invoice.subscription as string)
           const userId = subscription.metadata?.userId
 
           if (userId) {
@@ -119,8 +119,8 @@ export async function POST(request: NextRequest) {
               .from('subscriptions')
               .update({
                 status: 'active',
-                current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-                current_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+                current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+                current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString()
               })
               .eq('stripe_subscription_id', subscription.id)
           }
@@ -129,10 +129,10 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as Stripe.Invoice
+        const invoice = event.data.object as any
         
         if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string)
+          const subscription: any = await stripe.subscriptions.retrieve(invoice.subscription as string)
           const userId = subscription.metadata?.userId
 
           if (userId) {

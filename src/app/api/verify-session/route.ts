@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { supabase } from '@/lib/supabase'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-12-18.acacia',
+  apiVersion: '2025-08-27.basil',
 })
 
 export async function POST(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No subscription found' }, { status: 400 })
     }
 
-    const subscription = session.subscription as Stripe.Subscription
+    const subscription: any = session.subscription
     const userId = session.metadata?.userId
     const plan = session.metadata?.plan
 

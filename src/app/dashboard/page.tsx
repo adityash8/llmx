@@ -183,7 +183,7 @@ export default function DashboardPage() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Last Updated</p>
                   <p className="text-sm font-bold text-gray-900">
-                    {projects.length > 0 ? new Date(Math.max(...projects.map(p => new Date(p.updated_at).getTime()))).toLocaleDateString() : 'Never'}
+                    {projects.length > 0 ? new Date(Math.max(...projects.map(p => new Date(p.updatedAt).getTime()))).toLocaleDateString() : 'Never'}
                   </p>
                 </div>
               </div>
@@ -234,14 +234,14 @@ export default function DashboardPage() {
                                 {scoreBadge.label}
                               </Badge>
                             )}
-                            {project.is_public && (
+                            {project.isPublic && (
                               <Badge variant="outline">Public</Badge>
                             )}
                           </div>
                           <p className="text-gray-600 mb-2">{project.domain}</p>
                           <div className="flex items-center space-x-4 text-sm text-gray-500">
-                            <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
-                            <span>Updated: {new Date(project.updated_at).toLocaleDateString()}</span>
+                            <span>Created: {new Date(project.createdAt).toLocaleDateString()}</span>
+                            <span>Updated: {new Date(project.updatedAt).toLocaleDateString()}</span>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">

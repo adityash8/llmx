@@ -16,12 +16,12 @@ export const ConfigSchema = z.object({
   }),
   rules: z.object({
     presets: z.record(z.string(), z.array(z.object({
-      type: z.enum(['include', 'exclude'),
+      type: z.enum(['include', 'exclude']),
       pattern: z.string(),
       description: z.string(),
     }))).default({}),
     custom: z.array(z.object({
-      type: z.enum(['include', 'exclude'),
+      type: z.enum(['include', 'exclude']),
       pattern: z.string(),
       description: z.string(),
     })).default([]),
