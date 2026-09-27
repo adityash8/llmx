@@ -83,7 +83,7 @@ export default function Navigation() {
                   <span className="text-sm text-gray-600">
                     {user.name || user.email}
                   </span>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                  <Button variant="ghost" size="sm" onClick={handleSignOut} aria-label="Sign out">
                     <LogOut className="h-4 w-4" />
                   </Button>
                 </>
