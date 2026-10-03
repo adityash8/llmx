@@ -252,7 +252,7 @@ export default function DashboardPage() {
                           >
                             View
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button variant="outline" size="sm" aria-label="Settings">
                             <Settings className="h-4 w-4" />
                           </Button>
                         </div>
