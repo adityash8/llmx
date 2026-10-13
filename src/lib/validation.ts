@@ -1,319 +1,79 @@
-import { SitemapUrl, ValidationIssue, ValidationResult } from '@/types'
+import type { SitemapUrl, ValidationIssue, ValidationResult } from '../types'
+import { safeFetch, type SafeResponse } from './safe-fetch'
 
-export async function validateUrls(urls: SitemapUrl[]): Promise<ValidationResult> {
-  const issues: ValidationIssue[] = []
-  const maxConcurrent = 10 // Limit concurrent requests
-  
-  // Process URLs in batches
-  const batches = []
-  for (let i = 0; i < urls.length; i += maxConcurrent) {
-    batches.push(urls.slice(i, i + maxConcurrent))
+export function robotsAllows(text: string, path: string, agent = 'LLMX'): boolean {
+  const groups: { agents: string[]; rules: { allow: boolean; path: string }[] }[] = []
+  let group: typeof groups[number] | undefined
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.replace(/#.*$/, '').match(/^\s*(user-agent|allow|disallow)\s*:\s*(.*)$/i)
+    if (!match) continue
+    const key = match[1].toLowerCase(), value = match[2].trim()
+    if (key === 'user-agent') {
+      if (!group || group.rules.length) { group = { agents: [], rules: [] }; groups.push(group) }
+      group.agents.push(value.toLowerCase())
+    } else if (group && value) group.rules.push({ allow: key === 'allow', path: value })
   }
-  
-  for (const batch of batches) {
-    const batchPromises = batch.map(url => validateSingleUrl(url))
-    const batchResults = await Promise.allSettled(batchPromises)
-    
-    batchResults.forEach((result, index) => {
-      if (result.status === 'fulfilled') {
-        issues.push(...result.value)
-      } else {
-        issues.push({
-          type: 'status',
-          severity: 'error',
-          message: `Failed to validate ${batch[index].loc}: ${result.reason}`,
-          url: batch[index].loc,
-        })
-      }
-    })
-  }
-  
-  // Calculate score based on issues
-  const score = calculateScore(issues)
-  
-  // Group issues by type
-  const summary = {
-    errors: issues.filter(issue => issue.severity === 'error').length,
-    warnings: issues.filter(issue => issue.severity === 'warning').length,
-    info: issues.filter(issue => issue.severity === 'info').length,
-  }
-  
-  return { issues, score, summary }
+  const specific = groups.filter(g => g.agents.some(a => a !== '*' && agent.toLowerCase().includes(a)))
+  const active = specific.length ? specific : groups.filter(g => g.agents.includes('*'))
+  const matches = active.flatMap(g => g.rules).filter(r => {
+    const source = r.path.replace(/[.+?^{}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')
+    return new RegExp(`^${source}`).test(path)
+  }).sort((a,b) => b.path.replace(/[*$]/g,'').length - a.path.replace(/[*$]/g,'').length || Number(b.allow) - Number(a.allow))
+  return matches[0]?.allow ?? true
 }
-
-async function validateSingleUrl(url: SitemapUrl): Promise<ValidationIssue[]> {
+export function inspectPage(page: SitemapUrl, response: SafeResponse, robots: string | null, now = Date.now()): ValidationIssue[] {
   const issues: ValidationIssue[] = []
-  
-  try {
-    const response = await fetch(url.loc, {
-      method: 'HEAD',
-      headers: {
-        'User-Agent': 'LLMX Bot/1.0',
-      },
-    })
-    
-    // Check status code
-    if (response.status >= 400) {
-      issues.push({
-        type: 'status',
-        severity: 'error',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-        url: url.loc,
-        suggestion: 'Check if the URL is correct and accessible',
-      })
-    } else if (response.status >= 300) {
-      issues.push({
-        type: 'status',
-        severity: 'warning',
-        message: `HTTP ${response.status}: ${response.statusText}`,
-        url: url.loc,
-        suggestion: 'Consider using the canonical URL instead',
-      })
+  const add = (type: ValidationIssue['type'], severity: ValidationIssue['severity'], message: string, suggestion: string) => issues.push({ type, severity, message, suggestion, url: page.loc })
+  if (response.status >= 400) add('status', 'error', `HTTP ${response.status}`, 'Fix this URL or exclude it from the file.')
+  if (response.url !== page.loc) add('canonical', 'warning', `Redirects to ${response.url}`, 'Use the final URL.')
+  const tags = response.text.match(/<(?:link|meta)\b[^>]*>/gi) ?? []
+  for (const tag of tags) {
+    const attr = (name: string) => tag.match(new RegExp(`${name}\\s*=\\s*["']([^"']+)["']`, 'i'))?.[1]
+    if (tag.toLowerCase().startsWith('<link') && attr('rel')?.toLowerCase().split(/\s+/).includes('canonical')) {
+      try { const canonical = new URL(attr('href') || '', response.url).href; if (canonical !== page.loc) add('canonical','warning',`Canonical is ${canonical}`,'Use the canonical URL and remove duplicate entries.') } catch { add('canonical','warning','Canonical URL is malformed','Fix the canonical link on this page.') }
     }
-    
-    // Check for canonical URL conflicts
-    const canonicalUrl = response.headers.get('link')
-    if (canonicalUrl && canonicalUrl !== url.loc) {
-      issues.push({
-        type: 'canonical',
-        severity: 'warning',
-        message: `Canonical URL differs: ${canonicalUrl}`,
-        url: url.loc,
-        suggestion: `Use the canonical URL: ${canonicalUrl}`,
-      })
-    }
-    
-    // Check robots.txt conflicts
-    const robotsHeader = response.headers.get('x-robots-tag')
-    if (robotsHeader && robotsHeader.includes('noindex')) {
-      issues.push({
-        type: 'robots',
-        severity: 'error',
-        message: 'Page is marked as noindex',
-        url: url.loc,
-        suggestion: 'Remove noindex directive or exclude from llms.txt',
-      })
-    }
-    
-    // Check freshness
-    if (url.lastmod) {
-      const lastModDate = new Date(url.lastmod)
-      const now = new Date()
-      const daysSinceUpdate = (now.getTime() - lastModDate.getTime()) / (1000 * 60 * 60 * 24)
-
-      if (daysSinceUpdate > 365) {
-        issues.push({
-          type: 'freshness',
-          severity: 'warning',
-          message: `Content hasn't been updated in over a year (${Math.round(daysSinceUpdate)} days)`,
-          url: url.loc,
-          suggestion: 'Review if this content is still relevant or needs updating',
-        })
-      } else if (daysSinceUpdate > 90) {
-        issues.push({
-          type: 'freshness',
-          severity: 'info',
-          message: `Content hasn't been updated in ${Math.round(daysSinceUpdate)} days`,
-          url: url.loc,
-          suggestion: 'Consider reviewing and updating if content is outdated',
-        })
-      }
-    }
-
-    // Check for password protection (Webflow-specific)
-    const wwwAuthenticate = response.headers.get('www-authenticate')
-    if (wwwAuthenticate || response.status === 401) {
-      issues.push({
-        type: 'robots',
-        severity: 'error',
-        message: 'Page is password-protected',
-        url: url.loc,
-        suggestion: 'Remove password protection or exclude from llms.txt',
-      })
-    }
-    
-  } catch (error) {
-    issues.push({
-      type: 'status',
-      severity: 'error',
-      message: `Failed to fetch: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      url: url.loc,
-      suggestion: 'Check if the URL is accessible and the domain is correct',
-    })
+    if (tag.toLowerCase().startsWith('<meta') && /^(robots|llmx)$/i.test(attr('name') || '') && /noindex|none/i.test(attr('content') || '')) add('robots','error','Page metadata says noindex','Exclude this page or review its indexing policy.')
   }
-  
+  const canonicalHeader = response.headers.link?.match(/<([^>]+)>;\s*rel=["']?canonical/i)?.[1]
+  if (canonicalHeader && new URL(canonicalHeader, response.url).href !== page.loc) add('canonical','warning',`Canonical is ${new URL(canonicalHeader,response.url).href}`,'Use the canonical URL.')
+  if (/noindex|none/i.test(response.headers['x-robots-tag'] || '')) add('robots','error','HTTP header says noindex','Exclude this page or review its indexing policy.')
+  const url = new URL(page.loc)
+  if (robots === null) add('robots','warning','robots.txt could not be checked','Review robots.txt before publishing.')
+  else if (!robotsAllows(robots, url.pathname + url.search)) add('robots','error','robots.txt blocks LLMX or general crawlers','Exclude this page or review your access policy. llms.txt does not override robots.txt.')
+  if (page.lastmod) {
+    const date = Date.parse(page.lastmod)
+    if (!Number.isFinite(date) || date > now + 86400_000) add('freshness','warning','Sitemap lastmod is invalid or in the future','Correct the sitemap date.')
+    else if (now - date > 365 * 86400_000) add('freshness','warning','Sitemap reports no change in over a year','Review the content. Its age alone does not mean it is incorrect.')
+  }
   return issues
 }
-
-function calculateScore(issues: ValidationIssue[]): number {
-  const totalIssues = issues.length
-  if (totalIssues === 0) return 100
-  
-  let score = 100
-  
-  // Deduct points based on severity
-  issues.forEach(issue => {
-    switch (issue.severity) {
-      case 'error':
-        score -= 10
-        break
-      case 'warning':
-        score -= 5
-        break
-      case 'info':
-        score -= 2
-        break
-    }
-  })
-  
-  // Bonus for having no critical issues
-  const criticalIssues = issues.filter(issue => issue.severity === 'error').length
-  if (criticalIssues === 0) {
-    score += 10
-  }
-  
-  return Math.max(0, Math.min(100, score))
-}
-
 export function checkDuplicateUrls(urls: SitemapUrl[]): ValidationIssue[] {
-  const issues: ValidationIssue[] = []
-  const urlMap = new Map<string, SitemapUrl[]>()
-  
-  // Group URLs by their normalized form
-  urls.forEach(url => {
-    const normalized = normalizeUrl(url.loc)
-    if (!urlMap.has(normalized)) {
-      urlMap.set(normalized, [])
-    }
-    urlMap.get(normalized)!.push(url)
-  })
-  
-  // Check for duplicates
-  urlMap.forEach((urlGroup, normalized) => {
-    if (urlGroup.length > 1) {
-      issues.push({
-        type: 'duplicate',
-        severity: 'warning',
-        message: `Found ${urlGroup.length} duplicate URLs`,
-        url: urlGroup[0].loc,
-        suggestion: `Remove duplicates: ${urlGroup.map(u => u.loc).join(', ')}`,
-      })
-    }
-  })
-  
+  const seen = new Set<string>(); const issues: ValidationIssue[] = []
+  for (const page of urls) { const url = new URL(page.loc); url.hash = ''; if (seen.has(url.href)) issues.push({ type: 'duplicate', severity: 'warning', message: 'Duplicate URL', url: page.loc, suggestion: 'Keep one entry.' }); seen.add(url.href) }
   return issues
 }
-
-function normalizeUrl(url: string): string {
-  // Remove trailing slash and normalize
-  return url.replace(/\/$/, '').toLowerCase()
-}
-
-export function getScoreBadge(score: number): { label: string; variant: 'success' | 'warning' | 'error' } {
-  if (score >= 90) {
-    return { label: 'A+', variant: 'success' }
-  } else if (score >= 80) {
-    return { label: 'A', variant: 'success' }
-  } else if (score >= 70) {
-    return { label: 'B', variant: 'warning' }
-  } else if (score >= 60) {
-    return { label: 'C', variant: 'warning' }
-  } else {
-    return { label: 'D', variant: 'error' }
+export async function validateUrls(urls: SitemapUrl[], fetcher = safeFetch): Promise<ValidationResult & { checked: number; safeUrls: SitemapUrl[] }> {
+  const issues = checkDuplicateUrls(urls); const safeUrls: SitemapUrl[] = []
+  const deadline = Date.now() + 20_000
+  const origins = [...new Set(urls.slice(0, 20).map(u => new URL(u.loc).origin))]
+  const robots = new Map<string, string | null>()
+  for (const origin of origins.slice(0, 5)) {
+    try { const res = await fetcher(`${origin}/robots.txt`, { deadline, maxBytes: 128_000 }); robots.set(origin, res.status === 404 ? '' : res.status === 200 ? res.text : null) } catch { robots.set(origin,null) }
   }
-}
-
-// LLM Simulation for validation
-export async function simulateLLMParsing(urls: SitemapUrl[]): Promise<ValidationIssue[]> {
-  const issues: ValidationIssue[] = []
-  
-  // Simulate common LLM parsing issues
-  for (const url of urls.slice(0, 10)) { // Limit to first 10 for performance
-    try {
-      // Check for potential parsing ambiguities
-      const urlPath = new URL(url.loc).pathname
-      
-      // Check for very long URLs that might confuse LLMs
-      if (url.loc.length > 200) {
-        issues.push({
-          type: 'status',
-          severity: 'warning',
-          message: 'URL is very long and may confuse LLM parsing',
-          url: url.loc,
-          suggestion: 'Consider shortening the URL or using a more descriptive path',
-        })
-      }
-      
-      // Check for URLs with many parameters
-      const paramCount = (url.loc.match(/[?&]/g) || []).length
-      if (paramCount > 5) {
-        issues.push({
-          type: 'status',
-          severity: 'warning',
-          message: 'URL has many parameters that may confuse LLM parsing',
-          url: url.loc,
-          suggestion: 'Consider using cleaner URLs or canonical versions',
-        })
-      }
-      
-      // Check for non-ASCII characters
-      if (!/^[\x00-\x7F]*$/.test(url.loc)) {
-        issues.push({
-          type: 'status',
-          severity: 'info',
-          message: 'URL contains non-ASCII characters',
-          url: url.loc,
-          suggestion: 'Consider URL encoding or using ASCII-friendly alternatives',
-        })
-      }
-      
-      // Check for dynamic content indicators
-      const dynamicPatterns = ['/search?', '/filter?', '/sort?', '/page=', '/id=', '/uuid=']
-      if (dynamicPatterns.some(pattern => url.loc.includes(pattern))) {
-        issues.push({
-          type: 'status',
-          severity: 'warning',
-          message: 'URL appears to be dynamically generated',
-          url: url.loc,
-          suggestion: 'Consider if this URL should be included in llms.txt or if a canonical version exists',
-        })
-      }
-      
-    } catch (error) {
-      issues.push({
-        type: 'status',
-        severity: 'error',
-        message: 'Invalid URL format detected',
-        url: url.loc,
-        suggestion: 'Fix URL format to ensure proper LLM parsing',
-      })
-    }
+  const sample = urls.slice(0,20)
+  for (let start = 0; start < sample.length; start += 4) {
+    const results = await Promise.allSettled(sample.slice(start,start+4).map(async page => {
+      const response = await fetcher(page.loc, { deadline, maxBytes: 512_000 })
+      return inspectPage(page,response,robots.get(new URL(page.loc).origin) ?? null)
+    }))
+    results.forEach((result,index) => {
+      const page = sample[start+index]
+      const pageIssues: ValidationIssue[] = result.status === 'fulfilled' ? result.value : [{ type: 'status', severity:'error',url:page.loc,message:'Page could not be fetched safely within the request limits',suggestion:'Check availability, then retry or exclude this page.' }]
+      issues.push(...pageIssues)
+      if (!pageIssues.some(i => i.severity === 'error' || i.type === 'canonical' || (i.type === 'robots' && i.severity === 'warning'))) safeUrls.push(page)
+    })
   }
-  
-  return issues
+  const failed = new Set(issues.filter(i => i.severity === 'error').map(i => i.url)).size
+  return { issues, safeUrls, checked: sample.length, score: sample.length ? Math.round(100 * (sample.length - failed) / sample.length) : 0, summary: { errors:issues.filter(i => i.severity === 'error').length, warnings:issues.filter(i => i.severity === 'warning').length, info:issues.filter(i => i.severity === 'info').length } }
 }
-
-// Enhanced validation that includes LLM simulation
-export async function validateUrlsWithLLMSimulation(urls: SitemapUrl[]): Promise<ValidationResult> {
-  // Run standard validation
-  const standardValidation = await validateUrls(urls)
-  
-  // Run LLM simulation
-  const llmIssues = await simulateLLMParsing(urls)
-  
-  // Combine issues
-  const allIssues = [...standardValidation.issues, ...llmIssues]
-  
-  // Recalculate score
-  const score = calculateScore(allIssues)
-  
-  return {
-    issues: allIssues,
-    score,
-    summary: {
-      errors: allIssues.filter(issue => issue.severity === 'error').length,
-      warnings: allIssues.filter(issue => issue.severity === 'warning').length,
-      info: allIssues.filter(issue => issue.severity === 'info').length,
-    }
-  }
-}
+export function getScoreBadge(score: number): { label: string; variant: 'success' | 'warning' | 'error' } { return { label: `${score}% accessible in sample`, variant: score === 100 ? 'success' : score >= 50 ? 'warning' : 'error' } }

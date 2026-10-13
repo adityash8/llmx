@@ -215,7 +215,7 @@ export default function WebflowSitesPage() {
                 <li>You can configure rules to include/exclude URLs</li>
                 <li>We'll validate all URLs and flag any issues</li>
                 <li>Generate and preview your llms.txt file</li>
-                <li>Publish directly to your Webflow site</li>
+                <li>Download the file and install it at your site root</li>
               </ol>
             </CardContent>
           </Card>

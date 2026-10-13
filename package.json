@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@octokit/auth-oauth-app": "^9.0.1",
@@ -27,7 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.542.0",
-    "next": "15.5.9",
+    "next": "15.5.27",
     "posthog-js": "^1.261.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
@@ -42,8 +44,9 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "15.5.27",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.2"
   }
 }

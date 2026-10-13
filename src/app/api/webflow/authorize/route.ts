@@ -37,8 +37,7 @@ export async function GET(request: NextRequest) {
     const authUrl = getWebflowAuthUrl(clientId, redirectUri, state)
 
     return NextResponse.json({ authUrl })
-  } catch (error) {
-    console.error('Error initiating Webflow OAuth:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Failed to initiate OAuth flow' },
       { status: 500 }
