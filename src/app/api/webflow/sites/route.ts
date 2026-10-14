@@ -53,8 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ sites })
-  } catch (error) {
-    console.error('Error fetching Webflow sites:', error)
+  } catch {
     return NextResponse.json(
       { error: 'Failed to fetch sites' },
       { status: 500 }

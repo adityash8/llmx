@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,7 +16,6 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,10 +25,6 @@ export default function SignupPage() {
     try {
       await signUp(email, password, name)
       setSuccess(true)
-      // Redirect to dashboard after a short delay
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 2000)
     } catch (error: any) {
       setError(error.message || 'Failed to create account')
     } finally {
@@ -56,7 +50,7 @@ export default function SignupPage() {
                     Please check your email to verify your account.
                   </p>
                   <p className="text-sm text-gray-500">
-                    Redirecting to dashboard...
+                    After confirming your email, sign in to save a private project.
                   </p>
                 </div>
               </CardContent>

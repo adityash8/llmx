@@ -133,8 +133,7 @@ export async function exchangeCodeForTokens(
   })
 
   if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`Failed to exchange code for tokens: ${error}`)
+    throw new Error(`Failed to exchange code for tokens: HTTP ${response.status}`)
   }
 
   return response.json()

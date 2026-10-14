@@ -134,8 +134,7 @@ export async function loadConfig(): Promise<Config> {
     
     // Merge with defaults
     return { ...DEFAULT_CONFIG, ...config }
-  } catch (error) {
-    console.warn('Could not load config file, using defaults:', error)
+  } catch {
     return DEFAULT_CONFIG
   }
 }
@@ -148,7 +147,7 @@ export function validateConfig(config: Config): { isValid: boolean; errors: stri
     ConfigSchema.parse(config)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      errors.push(...error.errors.map(e => `${e.path.join('.')}: ${e.message}`))
+      errors.push(...error.issues.map(e => `${e.path.join('.')}: ${e.message}`))
     } else {
       errors.push('Unknown configuration error')
     }

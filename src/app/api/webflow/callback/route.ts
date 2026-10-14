@@ -77,8 +77,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL('/dashboard/webflow/sites', request.url)
     )
-  } catch (error) {
-    console.error('Error in Webflow OAuth callback:', error)
+  } catch {
     return NextResponse.redirect(
       new URL('/dashboard?error=oauth_failed', request.url)
     )

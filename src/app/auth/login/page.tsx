@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -15,12 +15,18 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [callbackError, setCallbackError] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    setCallbackError(new URLSearchParams(window.location.search).get('error') === 'callback')
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+    setCallbackError(false)
 
     try {
       await signIn(email, password)
@@ -47,10 +53,10 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                {error && (
+                {(error || callbackError) && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2 text-red-800">
                     <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm">{error}</span>
+                    <span className="text-sm">{error || 'We could not confirm your sign-in. Request a new link or sign in again.'}</span>
                   </div>
                 )}
                 
