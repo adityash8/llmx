@@ -8,7 +8,7 @@ export function createClientSupabase() {
   return browserClient
 }
 export async function signUp(email:string,password:string,name?:string) {
-  const {data,error}=await createClientSupabase().auth.signUp({email,password,options:{data:{name}}})
+  const {data,error}=await createClientSupabase().auth.signUp({email,password,options:{emailRedirectTo:`${window.location.origin}/auth/callback`,data:{name}}})
   if(error) throw new Error(error.message)
   return data
 }

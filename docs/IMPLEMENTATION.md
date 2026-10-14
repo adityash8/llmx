@@ -1,5 +1,11 @@
 # LLMX implementation plan
 
+## Signup confirmation return — 2026-10-13
+
+Email/password signup now sends Supabase `emailRedirectTo` to the current browser origin's new `/auth/callback`. The installed `@supabase/ssr` browser client uses PKCE. The new public callback exchanges the confirmation code with a server client, writes the session cookies onto the redirect response, and opens `/dashboard`; missing or failed codes return to the existing `/auth/login`. This new public route needs parent review. Signup name metadata and the manual sign-in guidance remain unchanged. The shared Supabase Site URL stays with PolyPrompt; LLMX's product origin must remain in the parent's verified Auth redirect allowlist.
+
+Verification: a mocked signup call captured `https://active-product.example/auth/callback` from an active origin. Callback checks returned `/auth/login` for missing/invalid codes and `/dashboard` with a session cookie for a valid code. `npm test` passed 12/12, `npm run typecheck`, `npm run lint`, and `npm run build` exited 0; lint reported the existing 12 warnings and the build listed `/auth/callback`. A local HTTP smoke was blocked by sandbox `listen EPERM`, so parent owns deployment and a real email-confirmation signup with the production origin. No live account or email was created here.
+
 ## Correction plan — 2026-10-13
 
 Require HTTPS at the shared public URL boundary and on redirect hops. Save individual excluded page keys with rules and reapply both to refreshed content. Charge the durable per-user usage RPC before GitHub diff reads. Prove HTTP rejection, redirect downgrade, exclusion persistence/URL normalization, quota replay and storage-error behavior with `npm test`; then run `npm run typecheck`, `npm run lint`, `npm run build`, a browser flow where available, and `git diff --check`. The unapplied schema may be amended; no live SQL is run here.
@@ -38,9 +44,17 @@ Billing and cron are phase 2. The inherited demo-identity checkout and webhook r
 
 ## External release gates
 
+### Project proof ownership correction — 2026-10-13
+
+`POST /api/projects` authenticates the user, assigns a fresh server-generated proof, and inserts with the server-only Supabase service role client. The database grants authenticated clients owner-scoped `SELECT` and `DELETE`, but denies direct `INSERT`; clients must create projects through the API. The one-project-per-user unique constraint remains in place. The API returns the saved project with `verified_at: null`, not a claim of domain ownership.
+
+For an already-applied LLMX schema, apply `supabase/migrations/20261013000000_restrict_llmx_project_insert.sql` before exposing project creation. It removes the obsolete insert policy and revokes insert from `anon` and `authenticated` without changing project rows. `supabase/llmx.sql` has the same corrected grants for fresh installation. Keep `SUPABASE_SERVICE_ROLE_KEY` server-only; project creation returns a configuration error without it.
+
+Local `npm test` checks the route with two mocked owners and caller-supplied foreign proof, plus SQL policy/grant invariants. These checks do not execute Postgres RLS. The release check in the shared Supabase project remains: authenticated direct insert denied; API create returns 201; two accounts cannot read or delete each other's rows; a newly created proof can verify only its own domain through the DNS or file flow and refresh remains owner-scoped.
+
 Correction check (2026-10-13): `npm test` passed 10/10, including HTTPS target/redirect rejection, normalized saved page exclusions with text rules, and quota replay/storage errors. `npm run typecheck`, `npm run lint`, `npm run build`, and `git diff --check` exited 0. Lint reported the same 12 warnings in inherited files and no errors. No LLMX browser command exists in `package.json`; parent owns the outside-sandbox browser and provider flows. Public contract changes: public fetch and project-domain proof now require HTTPS; `POST /api/projects` accepts optional `excludedUrls`, stored as `excluded_urls` in the unapplied SQL schema and honored by refresh/export/PR content; `GET /api/projects/:id/pr` now consumes one durable daily integration unit before any GitHub call and returns 429 at the limit or 503 on quota storage error. Parent must apply the amended SQL before private save testing. No live SQL or provider calls were made.
 
-Parent applies `supabase/llmx.sql` to the shared project, then sets `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and server-only `SUPABASE_SERVICE_ROLE_KEY`. Private ownership, RLS, deletion, and atomic per-user integration usage limits require a live Supabase check after migration; local tests cannot prove the remote policies.
+For a fresh database, parent applies `supabase/llmx.sql`; for the already-applied LLMX schema, parent applies the corrective migration above. The project needs `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and server-only `SUPABASE_SERVICE_ROLE_KEY`. Private ownership, RLS, deletion, and atomic per-user integration usage limits require a live Supabase check after migration; local tests cannot prove the remote policies.
 
 GitHub PR export additionally requires `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `LLMX_APP_URL`, and a server-only 64-character hex `LLMX_TOKEN_ENCRYPTION_KEY`, with the OAuth callback configured as `${LLMX_APP_URL}/api/github/callback`. The user must sign in, save a project, publish file or DNS proof, connect GitHub, and grant repository access. No production provider credits or cloud operations were used here.
 

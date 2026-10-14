@@ -1,4 +1,4 @@
--- Parent applies this migration. Product tables are private by default.
+-- Fresh LLMX schema. Product tables are private by default.
 create table if not exists public.llmx_projects (
  id uuid primary key default gen_random_uuid(), user_id uuid not null references auth.users(id) on delete cascade,
  name text not null check(length(name) between 1 and 120), domain text not null,
@@ -10,10 +10,10 @@ create table if not exists public.llmx_projects (
 );
 alter table public.llmx_projects enable row level security;
 create policy llmx_owner_read on public.llmx_projects for select to authenticated using(user_id=auth.uid());
-create policy llmx_owner_insert on public.llmx_projects for insert to authenticated with check(user_id=auth.uid() and verified_at is null);
 create policy llmx_owner_delete on public.llmx_projects for delete to authenticated using(user_id=auth.uid());
 -- Verified status, generated updates and refresh are server-owned, never caller-controlled.
-grant select,insert,delete on public.llmx_projects to authenticated;
+grant select,delete on public.llmx_projects to authenticated;
+revoke insert on public.llmx_projects from anon,authenticated;
 revoke update on public.llmx_projects from authenticated;
 create table if not exists public.llmx_github_tokens(user_id uuid primary key references auth.users(id) on delete cascade, encrypted_token text not null);
 alter table public.llmx_github_tokens enable row level security;
