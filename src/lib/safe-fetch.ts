@@ -38,7 +38,9 @@ export async function safeFetch(value: string, options: { maxBytes?: number; dea
   const response = await new Promise<SafeResponse>((resolve, reject) => {
     const req = https.get(url, {
       agent: false,
-      lookup: (_name, _options, callback) => callback(null, address.address, address.family),
+      lookup: (_name, lookupOptions, callback) => lookupOptions.all
+        ? callback(null, [{ address: address.address, family: address.family }])
+        : callback(null, address.address, address.family),
       headers: { 'User-Agent': 'LLMX/2.0', Accept: 'text/html,text/plain,application/xml', 'Accept-Encoding': 'identity' },
     }, res => {
       const chunks: Buffer[] = []; let bytes = 0
